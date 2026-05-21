@@ -1445,17 +1445,17 @@ function ensureMap(){
   // OpenInfraMap overlays — power, telecom, petroleum
   // Each tile shows infrastructure color-coded by voltage/type, scaled by zoom.
   const powerOverlay = L.tileLayer(
-    "https://openinframap.org/tiles/power/{z}/{x}/{y}.png",
+    "https://tiles-{s}.openinframap.org/power/{z}/{x}/{y}.png",
     {attribution:'&copy; <a href="https://openinframap.org/about" target="_blank">OpenInfraMap</a> / OSM contributors',
-     maxZoom:18, opacity:0.85}
+     subdomains:"abc", maxZoom:18, opacity:0.85}
   );
   const telecomOverlay = L.tileLayer(
-    "https://openinframap.org/tiles/telecoms/{z}/{x}/{y}.png",
-    {attribution:'&copy; OpenInfraMap / OSM', maxZoom:18, opacity:0.85}
+    "https://tiles-{s}.openinframap.org/telecoms/{z}/{x}/{y}.png",
+    {attribution:'&copy; OpenInfraMap / OSM', subdomains:"abc", maxZoom:18, opacity:0.85}
   );
   const petroleumOverlay = L.tileLayer(
-    "https://openinframap.org/tiles/petroleum/{z}/{x}/{y}.png",
-    {attribution:'&copy; OpenInfraMap / OSM', maxZoom:18, opacity:0.85}
+    "https://tiles-{s}.openinframap.org/petroleum/{z}/{x}/{y}.png",
+    {attribution:'&copy; OpenInfraMap / OSM', subdomains:"abc", maxZoom:18, opacity:0.85}
   );
 
   L.control.layers(
