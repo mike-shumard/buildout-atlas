@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buildout Atlas — U.S. AI Infrastructure</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#12161b; --panel2:#1a2027; --line:#232a33;
+    --ink:#e8edf2; --ink-dim:#9aa6b2; --ink-mute:#6b7682;
+    --accent:#7cd8ff; --accent2:#ffd166;
+    --st-announced:#9aa6b2;
+    --st-permitting:#ffd166;
+    --st-construction:#ff9248;
+    --st-operational:#5dd39e;
+    --st-paused:#ef476f;
+    --st-unknown:#5b6570;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,system-ui,sans-serif;
+    font-size:14px;line-height:1.5}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  header.app{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 22px;border-bottom:1px solid var(--line);background:var(--panel);
+    position:sticky;top:0;z-index:1000}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 12px var(--accent)}
+  .brand .sub{color:var(--ink-mute);font-weight:400;font-size:12px;margin-left:6px}
+  nav.tabs{display:flex;gap:4px}
+  nav.tabs a{padding:8px 14px;border-radius:8px;color:var(--ink-dim);font-weight:500;
+    text-decoration:none;font-size:13px}
+  nav.tabs a:hover{background:var(--panel2);color:var(--ink)}
+  nav.tabs a.active{background:var(--panel2);color:var(--ink)}
+  main{min-height:calc(100vh - 110px)}
+  section.view{display:none;padding:24px}
+  section.view.active{display:block}
+  /* HOME */
+  .hero{padding:40px 24px 28px;border-bottom:1px solid var(--line)}
+  .hero h1{margin:0 0 8px;font-size:30px;letter-spacing:-.5px}
+  .hero p{margin:0;color:var(--ink-dim);max-width:720px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:14px;margin:22px 0}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px}
+  .stat .v{font-size:24px;font-weight:700;letter-spacing:-.3px}
+  .stat .l{color:var(--ink-mute);font-size:12px;text-transform:uppercase;
+    letter-spacing:.6px;margin-top:4px}
+  .row-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:14px;margin-top:8px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .card h3{margin:0 0 10px;font-size:13px;color:var(--ink-mute);
+    text-transform:uppercase;letter-spacing:.6px}
+  .card ol{margin:0;padding-left:20px}
+  .card li{margin:6px 0}
+  .cta{display:inline-block;background:var(--accent);color:#0b0d10;padding:10px 16px;
+    border-radius:8px;font-weight:600;margin-top:6px}
+  .cta:hover{text-decoration:none;background:#a3e4ff}
+  /* MAP */
+  .map-wrap{display:grid;grid-template-columns:280px 1fr;gap:14px;height:calc(100vh - 130px)}
+  .filters{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:14px;overflow-y:auto}
+  .filters h4{margin:0 0 8px;font-size:11px;color:var(--ink-mute);
+    text-transform:uppercase;letter-spacing:.6px}
+  .filters .group{margin-bottom:18px}
+  .filters select,.filters input{width:100%;background:var(--panel2);color:var(--ink);
+    border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:13px}
+  .legend{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .legend .item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim)}
+  .legend .swatch{width:10px;height:10px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.85);box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+  #map{border:1px solid var(--line);border-radius:10px;background:#11161c}
+  .leaflet-popup-content-wrapper{background:var(--panel);color:var(--ink);
+    border-radius:10px;border:1px solid var(--line)}
+  .leaflet-popup-tip{background:var(--panel)}
+  .leaflet-popup-content{margin:12px 14px;font-size:13px;line-height:1.5}
+  .leaflet-popup-content b{font-size:14px}
+  .pp-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;
+    font-weight:600;margin-right:4px}
+  /* LIST */
+  .list-tools{display:grid;grid-template-columns:1fr repeat(4,160px) 180px;gap:8px;
+    margin-bottom:14px}
+  .list-tools input,.list-tools select{background:var(--panel2);color:var(--ink);
+    border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px}
+  .table-wrap{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+  th{background:var(--panel2);color:var(--ink-dim);font-weight:600;font-size:12px;
+    text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;cursor:pointer}
+  th:hover{color:var(--ink)}
+  tbody tr{cursor:pointer;transition:background .12s}
+  tbody tr:hover{background:#1c2229}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.tight{white-space:nowrap}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;
+    font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+  .conf-High{color:#5dd39e}
+  .conf-Medium{color:#ffd166}
+  .conf-Low{color:#ef476f}
+  .empty{padding:40px;text-align:center;color:var(--ink-mute)}
+  /* DETAIL */
+  .detail-head{display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:18px;gap:14px;flex-wrap:wrap}
+  .detail-head h1{margin:0;font-size:22px;letter-spacing:-.3px}
+  .detail-head .sub{color:var(--ink-mute);font-size:13px;margin-top:4px}
+  .detail-grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+  .pane{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .pane h3{margin:0 0 12px;font-size:11px;color:var(--ink-mute);
+    text-transform:uppercase;letter-spacing:.6px}
+  .kv{display:grid;grid-template-columns:160px 1fr;gap:8px;font-size:13px}
+  .kv .k{color:var(--ink-mute)}
+  .kv .v{color:var(--ink)}
+  .score-row{display:flex;justify-content:space-between;align-items:center;
+    padding:8px 0;border-bottom:1px solid var(--line)}
+  .score-row:last-child{border-bottom:0}
+  .score-row .l{color:var(--ink-dim);font-size:13px}
+  .score-row .v{font-weight:700;font-size:16px}
+  .bar{width:100%;height:5px;background:var(--panel2);border-radius:3px;
+    overflow:hidden;margin-top:4px}
+  .bar > span{display:block;height:100%;background:var(--accent)}
+  .back{display:inline-block;color:var(--ink-dim);font-size:13px;margin-bottom:8px}
+  .back:hover{color:var(--ink);text-decoration:none}
+  footer.app{padding:14px 22px;border-top:1px solid var(--line);color:var(--ink-mute);
+    font-size:12px;display:flex;justify-content:space-between}
+  @media (max-width:900px){
+    .map-wrap{grid-template-columns:1fr;height:auto}
+    #map{height:60vh}
+    .list-tools{grid-template-columns:1fr 1fr}
+    .detail-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="brand">
+    <span class="dot"></span>
+    Buildout Atlas
+    <span class="sub">U.S. AI Infrastructure · Phase 1 MVP</span>
+  </div>
+  <nav class="tabs">
+    <a href="#/" data-route="home">Home</a>
+    <a href="#/map" data-route="map">Map</a>
+    <a href="#/list" data-route="list">List</a>
+  </nav>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section id="view-home" class="view">
+    <div class="hero">
+      <h1>The dots, on the map.</h1>
+      <p>An interactive inventory of publicly-announced U.S. AI infrastructure —
+        hyperscale data centers, GPU campuses, power expansions, and chip facilities
+        backing the AI buildout. Phase&nbsp;1: find the dots, put them on the map, make
+        them searchable.</p>
+    </div>
+    <div class="stats" id="home-stats"></div>
+    <div class="row-cards">
+      <div class="card">
+        <h3>Top by announced investment</h3>
+        <ol id="top-investment"></ol>
+      </div>
+      <div class="card">
+        <h3>Top by planned power (MW)</h3>
+        <ol id="top-power"></ol>
+      </div>
+      <div class="card">
+        <h3>Status mix</h3>
+        <div id="status-mix"></div>
+      </div>
+    </div>
+    <p style="margin-top:24px">
+      <a class="cta" href="#/map">Open the national map →</a>
+    </p>
+  </section>
+
+  <!-- MAP -->
+  <section id="view-map" class="view">
+    <div class="map-wrap">
+      <aside class="filters" id="map-filters">
+        <div class="group">
+          <h4>Search</h4>
+          <input id="map-search" placeholder="Project, company, city…"/>
+        </div>
+        <div class="group">
+          <h4>State</h4>
+          <select id="map-state"><option value="">All states</option></select>
+        </div>
+        <div class="group">
+          <h4>Company</h4>
+          <select id="map-company"><option value="">All companies</option></select>
+        </div>
+        <div class="group">
+          <h4>Project type</h4>
+          <select id="map-type"><option value="">All types</option></select>
+        </div>
+        <div class="group">
+          <h4>Status</h4>
+          <select id="map-status"><option value="">All statuses</option></select>
+        </div>
+        <div class="group">
+          <h4>Legend</h4>
+          <div class="legend" id="legend"></div>
+        </div>
+        <div class="group">
+          <h4>Showing</h4>
+          <div id="map-count" style="font-size:13px;color:var(--ink-dim)"></div>
+        </div>
+      </aside>
+      <div id="map"></div>
+    </div>
+  </section>
+
+  <!-- LIST -->
+  <section id="view-list" class="view">
+    <div class="list-tools">
+      <input id="list-search" placeholder="Search project, company, city, state…"/>
+      <select id="list-state"><option value="">All states</option></select>
+      <select id="list-company"><option value="">All companies</option></select>
+      <select id="list-type"><option value="">All types</option></select>
+      <select id="list-status"><option value="">All statuses</option></select>
+      <select id="list-sort">
+        <option value="investment-desc">Sort: Investment ↓</option>
+        <option value="power-desc">Sort: Power MW ↓</option>
+        <option value="build-desc">Sort: Build certainty ↓</option>
+        <option value="impact-desc">Sort: Local impact ↓</option>
+        <option value="opportunity-desc">Sort: Opportunity ↓</option>
+        <option value="hype-asc">Sort: Hype/uncertainty ↑</option>
+        <option value="updated-desc">Sort: Last updated ↓</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Company</th>
+            <th>Location</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th class="num">Invest ($B)</th>
+            <th class="num">MW</th>
+            <th class="num">Build</th>
+            <th class="num">Impact</th>
+            <th class="num">Opp</th>
+            <th class="num">Hype</th>
+            <th>Conf</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody id="list-rows"></tbody>
+      </table>
+      <div id="list-empty" class="empty" style="display:none">No locations match.</div>
+    </div>
+  </section>
+
+  <!-- DETAIL -->
+  <section id="view-detail" class="view">
+    <a class="back" href="#/list">← Back to list</a>
+    <div id="detail-body"></div>
+  </section>
+</main>
+
+<footer class="app">
+  <div>Buildout Atlas v0.1 · 30 sourced locations · Last data refresh <span id="data-ts">—</span></div>
+  <div>Tiles © OpenStreetMap contributors</div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* ==========================================================================
+ * BUILDOUT ATLAS — PHASE 1 DATA
+ * 30 publicly-announced U.S. AI infrastructure locations.
+ * Every entry includes: project name, company, city/county/state,
+ * lat/lon, status, project_type, source_url, confidence_level, last_updated.
+ * ========================================================================== */
+const DATA = {
+  meta:{ version:"0.1", last_refresh:"2026-05-21", source_count:30 },
+  locations:[
+  {
+    id:"stargate-abilene",
+    project_name:"Stargate Abilene (Project Ludlow)",
+    company:"Crusoe / Oracle / OpenAI",
+    city:"Abilene", county:"Taylor", state:"TX", region:"South",
+    latitude:32.4487, longitude:-99.7331,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:15000000000,
+    estimated_power_mw:1200,
+    estimated_water_mgd:null,
+    source_url:"https://www.tomshardware.com/tech-industry/oracle-and-openai-scrap-planned-600mw-abilene-expansion",
+    source_name:"Tom's Hardware",
+    source_date:"2026-03",
+    confidence_level:"High",
+    build_certainty_score:90, local_impact_score:95,
+    opportunity_score:88, hype_uncertainty_score:35,
+    notes:"Flagship Stargate site. 8 buildings, GB200 Blackwell racks running training and inference. ~1.2 GW capacity targeted mid-2026. Planned 600MW expansion recently scrapped; Nvidia paid $150M deposit and is brokering capacity to Meta.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"stargate-jupiter-nm",
+    project_name:"Stargate Project Jupiter",
+    company:"Oracle / OpenAI",
+    city:"Santa Teresa", county:"Doña Ana", state:"NM", region:"West",
+    latitude:31.8462, longitude:-106.6358,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:165000000000,
+    estimated_power_mw:1000,
+    estimated_water_mgd:null,
+    source_url:"https://www.abqjournal.com/business/doa-ana-countys-project-jupiter-joins-500-billion-stargate-initiative-led-by-openai-oracle/493927",
+    source_name:"Albuquerque Journal",
+    source_date:"2025-09",
+    confidence_level:"High",
+    build_certainty_score:75, local_impact_score:90,
+    opportunity_score:85, hype_uncertainty_score:45,
+    notes:"4 buildings on 1,400 acres in southern NM near Santa Teresa. County approved $165B industrial revenue bond. First gigawatt of Nvidia systems expected H2 2026. Projected $384M/yr local economic impact.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"stargate-lordstown-oh",
+    project_name:"Stargate Lordstown",
+    company:"SoftBank / OpenAI",
+    city:"Lordstown", county:"Trumbull", state:"OH", region:"Midwest",
+    latitude:41.1639, longitude:-80.8231,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:null,
+    estimated_power_mw:1000,
+    estimated_water_mgd:null,
+    source_url:"https://www.datacenterdynamics.com/en/news/openai-announces-five-more-us-stargate-data-centers-with-oracle-and-softbank/",
+    source_name:"Data Center Dynamics",
+    source_date:"2025-09",
+    confidence_level:"Medium",
+    build_certainty_score:70, local_impact_score:80,
+    opportunity_score:78, hype_uncertainty_score:50,
+    notes:"Built on grounds of former GM/Lordstown Motors plant. SoftBank-led advanced fast-build data center design, targeting operation in 2026. Specific investment figure not yet public.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"stargate-shackelford-tx",
+    project_name:"Stargate Shackelford County (Vantage)",
+    company:"Vantage / Oracle / OpenAI",
+    city:"Albany", county:"Shackelford", state:"TX", region:"South",
+    latitude:32.7237, longitude:-99.2962,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:null,
+    estimated_power_mw:1400,
+    estimated_water_mgd:null,
+    source_url:"https://www.bigcountryhomepage.com/news/abilene-news/shackelford-county-selected-for-new-stargate-ai-data-center-possible-expansion-for-abilene/",
+    source_name:"Big Country Homepage",
+    source_date:"2025-09",
+    confidence_level:"Medium",
+    build_certainty_score:65, local_impact_score:82,
+    opportunity_score:80, hype_uncertainty_score:55,
+    notes:"1.4 GW campus developed by Vantage in partnership with Oracle, ~50 miles east of Abilene. First building targeted for 2026. Part of Sept 2025 five-site Stargate expansion.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"stargate-milam-tx",
+    project_name:"Stargate Milam County",
+    company:"SB Energy / SoftBank / OpenAI",
+    city:"Rockdale", county:"Milam", state:"TX", region:"South",
+    latitude:30.6549, longitude:-96.9744,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:null,
+    estimated_power_mw:1200,
+    estimated_water_mgd:null,
+    source_url:"https://openai.com/index/five-new-stargate-sites/",
+    source_name:"OpenAI",
+    source_date:"2025-09",
+    confidence_level:"Medium",
+    build_certainty_score:65, local_impact_score:78,
+    opportunity_score:80, hype_uncertainty_score:55,
+    notes:"1.2 GW Stargate campus on former Alcoa smelter site near Rockdale. Powered infrastructure operated by SB Energy. Initial facilities targeted for service in 2026.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"xai-colossus-memphis",
+    project_name:"xAI Colossus (1 + 2)",
+    company:"xAI",
+    city:"Memphis", county:"Shelby", state:"TN", region:"South",
+    latitude:35.1495, longitude:-90.0490,
+    project_type:"GPU Cluster / AI Campus",
+    status:"Operational",
+    estimated_investment_usd:18000000000,
+    estimated_power_mw:2000,
+    estimated_water_mgd:null,
+    source_url:"https://introl.com/blog/xai-colossus-2-gigawatt-expansion-555k-gpus-january-2026",
+    source_name:"Introl",
+    source_date:"2026-01",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:88,
+    opportunity_score:75, hype_uncertainty_score:40,
+    notes:"World's largest AI training facility per public claims. ~555,000 Nvidia GPUs across three Memphis buildings, targeting 2 GW total. Contested locally over emissions from on-site gas turbines.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"xai-solaris-turbines",
+    project_name:"xAI Solaris Gas Turbines",
+    company:"Solaris (for xAI)",
+    city:"Memphis", county:"Shelby", state:"TN", region:"South",
+    latitude:35.0454, longitude:-89.9956,
+    project_type:"Power Plant / Energy Expansion",
+    status:"Permitting",
+    estimated_investment_usd:null,
+    estimated_power_mw:1100,
+    estimated_water_mgd:null,
+    source_url:"https://introl.com/blog/xai-colossus-2-gigawatt-expansion-555k-gpus-january-2026",
+    source_name:"Introl",
+    source_date:"2026-01",
+    confidence_level:"Medium",
+    build_certainty_score:55, local_impact_score:70,
+    opportunity_score:50, hype_uncertainty_score:60,
+    notes:"On-site natural gas turbine fleet supplying xAI Colossus — initial 460MW expanding to 1.1+ GW by Q2 2027. Center of community pushback in South Memphis over air quality.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"meta-hyperion-la",
+    project_name:"Meta Hyperion",
+    company:"Meta",
+    city:"Holly Ridge", county:"Richland Parish", state:"LA", region:"South",
+    latitude:32.5210, longitude:-91.7770,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:200000000000,
+    estimated_power_mw:5000,
+    estimated_water_mgd:null,
+    source_url:"https://www.bloomberg.com/features/2026-meta-facebook-ai-data-center-louisiana/",
+    source_name:"Bloomberg",
+    source_date:"2026-04",
+    confidence_level:"High",
+    build_certainty_score:80, local_impact_score:98,
+    opportunity_score:90, hype_uncertainty_score:50,
+    notes:"~4,000 acres. Projected $200B+ cost (up from initial $10B Dec 2024 announcement). 5 GW compute + 2.5 GW campus load. 10 gas plants planned by Entergy. Active controversy over who pays for the new generation.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"microsoft-mt-pleasant-wi",
+    project_name:"Microsoft Mount Pleasant",
+    company:"Microsoft",
+    city:"Mount Pleasant", county:"Racine", state:"WI", region:"Midwest",
+    latitude:42.7191, longitude:-87.9101,
+    project_type:"Hyperscale Data Center",
+    status:"Paused / Contested",
+    estimated_investment_usd:3300000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.datacenterdynamics.com/en/news/microsoft-pauses-construction-on-part-of-data-center-site-in-mount-pleasant-wisconsin/",
+    source_name:"Data Center Dynamics",
+    source_date:"2025-04",
+    confidence_level:"High",
+    build_certainty_score:55, local_impact_score:80,
+    opportunity_score:60, hype_uncertainty_score:65,
+    notes:"Phase 1 still on track for 2026. Phase 2 (900-acre expansion) paused twice for design re-evaluation. Built on former Foxconn parcel.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"aws-new-albany-oh",
+    project_name:"AWS New Albany Campus",
+    company:"Amazon Web Services",
+    city:"New Albany", county:"Licking", state:"OH", region:"Midwest",
+    latitude:40.0809, longitude:-82.8088,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:3500000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.datacenterfrontier.com/site-selection/article/33011941/aws-readies-35b-for-5-more-ohio-data-centers-in-booming-columbus-suburb-new-albany",
+    source_name:"Data Center Frontier",
+    source_date:"2025-08",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:85,
+    opportunity_score:80, hype_uncertainty_score:25,
+    notes:"AWS' newest New Albany campus: $3.5B for 5 buildings. Two already operational. Part of $7.8B Ohio data center commitment; AWS has invested $6.2B in New Albany since 2015.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"crane-clean-energy",
+    project_name:"Crane Clean Energy Center (Three Mile Island Unit 1 restart)",
+    company:"Constellation / Microsoft",
+    city:"Middletown", county:"Dauphin", state:"PA", region:"Northeast",
+    latitude:40.1530, longitude:-76.7252,
+    project_type:"Power Plant / Energy Expansion",
+    status:"Permitting",
+    estimated_investment_usd:1600000000,
+    estimated_power_mw:835,
+    estimated_water_mgd:null,
+    source_url:"https://www.bloomberg.com/news/features/2026-05-07/three-mile-island-restart-moves-ahead-with-microsoft-ai-deal",
+    source_name:"Bloomberg",
+    source_date:"2026-05",
+    confidence_level:"High",
+    build_certainty_score:75, local_impact_score:75,
+    opportunity_score:70, hype_uncertainty_score:35,
+    notes:"Restart of dormant Three Mile Island Unit 1 under 20-year Microsoft PPA. $1B DOE loan announced; first advance Q1 2026. Restart targeted for 2027.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"project-rainier-in",
+    project_name:"Project Rainier (AWS / Anthropic)",
+    company:"AWS / Anthropic",
+    city:"New Carlisle", county:"St. Joseph", state:"IN", region:"Midwest",
+    latitude:41.6975, longitude:-86.4994,
+    project_type:"GPU Cluster / AI Campus",
+    status:"Operational",
+    estimated_investment_usd:11000000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://datacenter.news/story/aws-s-11bn-indiana-data-centre-powers-anthropic-s-ai-growth",
+    source_name:"datacenter.news",
+    source_date:"2025-12",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:80,
+    opportunity_score:75, hype_uncertainty_score:30,
+    notes:"1,200-acre AWS campus dedicated to Anthropic training, on Trainium silicon. Largest capital commitment in Indiana history. 1,000+ jobs.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"meta-eagle-mountain-ut",
+    project_name:"Meta Eagle Mountain",
+    company:"Meta",
+    city:"Eagle Mountain", county:"Utah", state:"UT", region:"West",
+    latitude:40.3144, longitude:-112.0099,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:1500000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://baxtel.com/data-center/meta-eagle-mountain-utah-campus",
+    source_name:"Baxtel",
+    source_date:"2025-10",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:75,
+    opportunity_score:70, hype_uncertainty_score:25,
+    notes:"Expanding to 4.5M sq ft across 7 buildings. Powered via Rocky Mountain Power's renewable tariff. Surrounding region facing water stress.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"microsoft-quincy-wa",
+    project_name:"Microsoft Quincy Campus",
+    company:"Microsoft",
+    city:"Quincy", county:"Grant", state:"WA", region:"West",
+    latitude:47.2343, longitude:-119.8523,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:null,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://datacenters.microsoft.com/globe/quincy/",
+    source_name:"Microsoft",
+    source_date:"2025-06",
+    confidence_level:"High",
+    build_certainty_score:98, local_impact_score:70,
+    opportunity_score:60, hype_uncertainty_score:20,
+    notes:"Long-running Microsoft hyperscale region powered largely by Columbia River hydro. Multiple expansions over the years.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"google-the-dalles-or",
+    project_name:"Google The Dalles",
+    company:"Google",
+    city:"The Dalles", county:"Wasco", state:"OR", region:"West",
+    latitude:45.5946, longitude:-121.1787,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:1800000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.oregonlive.com/silicon-forest/2022/12/google-data-centers-the-dalles-water-use-revealed-after-years-of-secrecy.html",
+    source_name:"The Oregonian",
+    source_date:"2024-09",
+    confidence_level:"High",
+    build_certainty_score:98, local_impact_score:72,
+    opportunity_score:60, hype_uncertainty_score:30,
+    notes:"Google's oldest US data center site. Recently disclosed annual water use of ~355M gallons. Ongoing expansions.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"google-council-bluffs-ia",
+    project_name:"Google Council Bluffs",
+    company:"Google",
+    city:"Council Bluffs", county:"Pottawattamie", state:"IA", region:"Midwest",
+    latitude:41.2619, longitude:-95.8608,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:7000000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.google.com/about/datacenters/locations/council-bluffs/",
+    source_name:"Google",
+    source_date:"2025-03",
+    confidence_level:"High",
+    build_certainty_score:98, local_impact_score:78,
+    opportunity_score:65, hype_uncertainty_score:20,
+    notes:"One of Google's largest US campuses. Continuous expansion. MidAmerican Energy primary utility partner.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"meta-temple-tx",
+    project_name:"Meta Temple Data Center",
+    company:"Meta",
+    city:"Temple", county:"Bell", state:"TX", region:"South",
+    latitude:31.0982, longitude:-97.3428,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:800000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://datacenters.atmeta.com/temple-data-center/",
+    source_name:"Meta",
+    source_date:"2024-10",
+    confidence_level:"High",
+    build_certainty_score:90, local_impact_score:72,
+    opportunity_score:65, hype_uncertainty_score:25,
+    notes:"$800M+ campus, Meta's first in Texas. Building 1 under construction, more planned.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"coreweave-plano-tx",
+    project_name:"CoreWeave Plano (Lancium-powered)",
+    company:"CoreWeave",
+    city:"Plano", county:"Collin", state:"TX", region:"South",
+    latitude:33.0198, longitude:-96.6989,
+    project_type:"GPU Cluster / AI Campus",
+    status:"Operational",
+    estimated_investment_usd:null,
+    estimated_power_mw:200,
+    estimated_water_mgd:null,
+    source_url:"https://www.datacenterdynamics.com/en/news/coreweave-launches-200mw-data-center-in-plano-texas/",
+    source_name:"Data Center Dynamics",
+    source_date:"2024-08",
+    confidence_level:"Medium",
+    build_certainty_score:90, local_impact_score:65,
+    opportunity_score:60, hype_uncertainty_score:35,
+    notes:"~200 MW GPU cloud capacity. CoreWeave operates many smaller leased footprints in tier-2 markets — this is one of the larger Texas presences.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"intel-ohio-one",
+    project_name:"Intel Ohio One (Fab 8 / 9)",
+    company:"Intel",
+    city:"New Albany", county:"Licking", state:"OH", region:"Midwest",
+    latitude:40.0700, longitude:-82.7400,
+    project_type:"Chip / Semiconductor Support",
+    status:"Under Construction",
+    estimated_investment_usd:28000000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.intel.com/content/www/us/en/newsroom/news/intel-ohio-progress-update.html",
+    source_name:"Intel",
+    source_date:"2025-12",
+    confidence_level:"High",
+    build_certainty_score:65, local_impact_score:90,
+    opportunity_score:85, hype_uncertainty_score:55,
+    notes:"Originally announced at $20B, scaled to ~$28B. Construction repeatedly delayed; first fab targeted for 2027–2028. Substantial CHIPS Act backing.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"tsmc-arizona",
+    project_name:"TSMC Arizona Fab 21",
+    company:"TSMC",
+    city:"Phoenix", county:"Maricopa", state:"AZ", region:"West",
+    latitude:33.8350, longitude:-112.0900,
+    project_type:"Chip / Semiconductor Support",
+    status:"Operational",
+    estimated_investment_usd:165000000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://metrophoenix.com/2026/05/tsmc-commits-20-billion-more-to-az-campus/",
+    source_name:"Metro Phoenix Alliance",
+    source_date:"2026-05",
+    confidence_level:"High",
+    build_certainty_score:90, local_impact_score:95,
+    opportunity_score:90, hype_uncertainty_score:35,
+    notes:"Largest foreign direct investment in US history ($165B target). 4nm in volume production; Fab 2 (3nm) completed April 2026, commercial production H2 2027. Water and labor constraints flagged.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"samsung-taylor-tx",
+    project_name:"Samsung Taylor Fab",
+    company:"Samsung",
+    city:"Taylor", county:"Williamson", state:"TX", region:"South",
+    latitude:30.5710, longitude:-97.4093,
+    project_type:"Chip / Semiconductor Support",
+    status:"Under Construction",
+    estimated_investment_usd:44000000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://news.samsung.com/us/samsung-expands-u-s-investment-to-44-billion-with-cutting-edge-semiconductor-ecosystem-in-central-texas/",
+    source_name:"Samsung",
+    source_date:"2024-04",
+    confidence_level:"High",
+    build_certainty_score:70, local_impact_score:88,
+    opportunity_score:85, hype_uncertainty_score:50,
+    notes:"$44B Central Texas ecosystem. Production start repeatedly slipped — currently targeted ~2026. CHIPS Act funding $6.4B.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"micron-clay-ny",
+    project_name:"Micron Clay Megafab",
+    company:"Micron",
+    city:"Clay", county:"Onondaga", state:"NY", region:"Northeast",
+    latitude:43.1828, longitude:-76.1786,
+    project_type:"Chip / Semiconductor Support",
+    status:"Under Construction",
+    estimated_investment_usd:100000000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.micron.com/about/our-commitment/standing-up-for-our-future/cnymegafab",
+    source_name:"Micron",
+    source_date:"2025-11",
+    confidence_level:"High",
+    build_certainty_score:65, local_impact_score:92,
+    opportunity_score:88, hype_uncertainty_score:55,
+    notes:"Up to $100B over 20+ years; 4 fabs targeted. Site prep underway. First fab production targeted late 2020s.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"vantage-reno-nv1",
+    project_name:"Vantage Reno NV1",
+    company:"Vantage Data Centers",
+    city:"Reno", county:"Washoe", state:"NV", region:"West",
+    latitude:39.5296, longitude:-119.8138,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:3000000000,
+    estimated_power_mw:280,
+    estimated_water_mgd:null,
+    source_url:"https://www.connectcre.com/stories/vantage-building-3b-reno-area-data-center/",
+    source_name:"Connect CRE",
+    source_date:"2025-05",
+    confidence_level:"Medium",
+    build_certainty_score:75, local_impact_score:70,
+    opportunity_score:68, hype_uncertainty_score:40,
+    notes:"~$3B Reno-area AI campus. First building targeted Q2 2026.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"equinix-ashburn-va",
+    project_name:"Equinix Ashburn DC Cluster (DC15/DC22)",
+    company:"Equinix",
+    city:"Ashburn", county:"Loudoun", state:"VA", region:"Northeast",
+    latitude:39.0438, longitude:-77.4874,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:null,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.equinix.com/data-centers/americas-colocation/united-states-colocation/washington-dc-data-centers",
+    source_name:"Equinix",
+    source_date:"2025-09",
+    confidence_level:"High",
+    build_certainty_score:98, local_impact_score:75,
+    opportunity_score:60, hype_uncertainty_score:25,
+    notes:"Loudoun's 'Data Center Alley' — densest concentration of data center capacity on Earth. Equinix anchors multiple buildings; new ones in development.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"meta-social-circle-ga",
+    project_name:"Meta Social Circle (Newton County)",
+    company:"Meta",
+    city:"Social Circle", county:"Newton", state:"GA", region:"South",
+    latitude:33.6584, longitude:-83.7138,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:1800000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://datacenters.atmeta.com/social-circle-data-center/",
+    source_name:"Meta",
+    source_date:"2024-05",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:72,
+    opportunity_score:65, hype_uncertainty_score:25,
+    notes:"Originally $750M, expanded multiple times. Newton County is a major emerging data center cluster in Georgia.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"microsoft-san-antonio-tx",
+    project_name:"Microsoft San Antonio Campus",
+    company:"Microsoft",
+    city:"San Antonio", county:"Bexar", state:"TX", region:"South",
+    latitude:29.4252, longitude:-98.4946,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:null,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://datacenters.microsoft.com/globe/san-antonio/",
+    source_name:"Microsoft",
+    source_date:"2025-06",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:70,
+    opportunity_score:62, hype_uncertainty_score:25,
+    notes:"Long-running Microsoft cloud region in Westover Hills. Ongoing additions; water usage flagged in local press.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"google-henderson-nv",
+    project_name:"Google Henderson Campus",
+    company:"Google",
+    city:"Henderson", county:"Clark", state:"NV", region:"West",
+    latitude:36.0395, longitude:-114.9817,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:1200000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.google.com/about/datacenters/locations/henderson/",
+    source_name:"Google",
+    source_date:"2025-02",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:70,
+    opportunity_score:65, hype_uncertainty_score:25,
+    notes:"~$1.2B operational campus in southern Nevada. Power via NV Energy / renewable mix.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"google-mesa-az",
+    project_name:"Google Mesa Campus",
+    company:"Google",
+    city:"Mesa", county:"Maricopa", state:"AZ", region:"West",
+    latitude:33.4152, longitude:-111.8315,
+    project_type:"Hyperscale Data Center",
+    status:"Under Construction",
+    estimated_investment_usd:1000000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://www.azcentral.com/story/news/local/mesa/2023/05/04/google-data-center-mesa-arizona-construction-begins/70182013007/",
+    source_name:"AZCentral",
+    source_date:"2024-11",
+    confidence_level:"Medium",
+    build_certainty_score:80, local_impact_score:70,
+    opportunity_score:65, hype_uncertainty_score:35,
+    notes:"Initial $1B campus in Mesa's Elliot Road technology corridor. First building under construction. Water sourcing under scrutiny.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"meta-sarpy-ne",
+    project_name:"Meta Sarpy County (Papillion)",
+    company:"Meta",
+    city:"Papillion", county:"Sarpy", state:"NE", region:"Midwest",
+    latitude:41.1542, longitude:-96.0419,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:1600000000,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://datacenters.atmeta.com/sarpy-data-center/",
+    source_name:"Meta",
+    source_date:"2024-09",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:75,
+    opportunity_score:65, hype_uncertainty_score:25,
+    notes:"$1.6B+ Meta campus, expanding. Powered by OPPD wind agreements.",
+    last_updated:"2026-05-21"
+  },
+  {
+    id:"microsoft-cheyenne-wy",
+    project_name:"Microsoft Cheyenne Campus",
+    company:"Microsoft",
+    city:"Cheyenne", county:"Laramie", state:"WY", region:"West",
+    latitude:41.1400, longitude:-104.8202,
+    project_type:"Hyperscale Data Center",
+    status:"Operational",
+    estimated_investment_usd:null,
+    estimated_power_mw:null,
+    estimated_water_mgd:null,
+    source_url:"https://datacenters.microsoft.com/globe/cheyenne/",
+    source_name:"Microsoft",
+    source_date:"2025-04",
+    confidence_level:"High",
+    build_certainty_score:95, local_impact_score:70,
+    opportunity_score:60, hype_uncertainty_score:25,
+    notes:"Long-running Microsoft hyperscale region in Wyoming; phased expansions.",
+    last_updated:"2026-05-21"
+  }
+  ]
+};
+
+/* ==========================================================================
+ * HELPERS
+ * ========================================================================== */
+const PROJECT_TYPES=[
+  "AI Data Center","Hyperscale Data Center","GPU Cluster / AI Campus",
+  "Power Plant / Energy Expansion","Transmission Upgrade",
+  "Water / Cooling Infrastructure","Chip / Semiconductor Support",
+  "Fiber / Network Infrastructure"
+];
+const STATUSES=["Announced","Permitting","Under Construction","Operational","Paused / Contested","Unknown"];
+const STATUS_COLOR={
+  "Announced":"var(--st-announced)",
+  "Permitting":"var(--st-permitting)",
+  "Under Construction":"var(--st-construction)",
+  "Operational":"var(--st-operational)",
+  "Paused / Contested":"var(--st-paused)",
+  "Unknown":"var(--st-unknown)"
+};
+const STATUS_HEX={
+  "Announced":"#9aa6b2",
+  "Permitting":"#ffd166",
+  "Under Construction":"#ff9248",
+  "Operational":"#5dd39e",
+  "Paused / Contested":"#ef476f",
+  "Unknown":"#5b6570"
+};
+
+const fmtUSD=(n)=>{
+  if(n==null) return "—";
+  if(n>=1e9) return "$"+(n/1e9).toFixed(n>=1e10?0:1)+"B";
+  if(n>=1e6) return "$"+(n/1e6).toFixed(0)+"M";
+  return "$"+n.toLocaleString();
+};
+const fmtMW=(n)=> n==null ? "—" : n.toLocaleString()+" MW";
+const uniq=(arr)=>[...new Set(arr)].sort();
+const escapeHtml=(s)=>String(s==null?"":s).replace(/[&<>"']/g,
+  c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ==========================================================================
+ * ROUTING
+ * ========================================================================== */
+function route(){
+  const hash=location.hash||"#/";
+  document.querySelectorAll("nav.tabs a").forEach(a=>a.classList.remove("active"));
+  document.querySelectorAll("section.view").forEach(s=>s.classList.remove("active"));
+
+  if(hash.startsWith("#/location/")){
+    const id=hash.slice("#/location/".length);
+    renderDetail(id);
+    document.getElementById("view-detail").classList.add("active");
+    return;
+  }
+  if(hash==="#/map"){
+    document.querySelector('nav.tabs a[data-route="map"]').classList.add("active");
+    document.getElementById("view-map").classList.add("active");
+    ensureMap();
+    return;
+  }
+  if(hash==="#/list"){
+    document.querySelector('nav.tabs a[data-route="list"]').classList.add("active");
+    document.getElementById("view-list").classList.add("active");
+    renderList();
+    return;
+  }
+  document.querySelector('nav.tabs a[data-route="home"]').classList.add("active");
+  document.getElementById("view-home").classList.add("active");
+  renderHome();
+}
+window.addEventListener("hashchange",route);
+
+/* ==========================================================================
+ * HOME
+ * ========================================================================== */
+function renderHome(){
+  const locs=DATA.locations;
+  const totalInvest=locs.reduce((s,l)=>s+(l.estimated_investment_usd||0),0);
+  const totalMW=locs.reduce((s,l)=>s+(l.estimated_power_mw||0),0);
+  const states=new Set(locs.map(l=>l.state));
+  const companies=new Set(locs.map(l=>l.company));
+  const stats=[
+    {l:"Locations",v:locs.length},
+    {l:"States",v:states.size},
+    {l:"Companies",v:companies.size},
+    {l:"Announced investment",v:fmtUSD(totalInvest)},
+    {l:"Planned power",v:fmtMW(totalMW)}
+  ];
+  document.getElementById("home-stats").innerHTML =
+    stats.map(s=>`<div class="stat"><div class="v">${s.v}</div><div class="l">${s.l}</div></div>`).join("");
+
+  const byInv=[...locs].filter(l=>l.estimated_investment_usd!=null)
+    .sort((a,b)=>b.estimated_investment_usd-a.estimated_investment_usd).slice(0,5);
+  document.getElementById("top-investment").innerHTML =
+    byInv.map(l=>`<li><a href="#/location/${l.id}">${escapeHtml(l.project_name)}</a> · ${fmtUSD(l.estimated_investment_usd)}</li>`).join("");
+
+  const byPower=[...locs].filter(l=>l.estimated_power_mw!=null)
+    .sort((a,b)=>b.estimated_power_mw-a.estimated_power_mw).slice(0,5);
+  document.getElementById("top-power").innerHTML =
+    byPower.map(l=>`<li><a href="#/location/${l.id}">${escapeHtml(l.project_name)}</a> · ${fmtMW(l.estimated_power_mw)}</li>`).join("");
+
+  const mix={};
+  STATUSES.forEach(s=>mix[s]=0);
+  locs.forEach(l=>{ if(mix[l.status]!=null) mix[l.status]++; else mix[l.status]=1; });
+  const mixHTML = Object.entries(mix).filter(([,v])=>v>0).map(([k,v])=>{
+    const pct=Math.round(100*v/locs.length);
+    return `<div style="margin:6px 0">
+      <div style="display:flex;justify-content:space-between;font-size:13px">
+        <span><span class="swatch" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${STATUS_HEX[k]};margin-right:6px"></span>${k}</span>
+        <span style="color:var(--ink-mute)">${v} · ${pct}%</span>
+      </div>
+      <div class="bar"><span style="width:${pct}%;background:${STATUS_HEX[k]}"></span></div>
+    </div>`;
+  }).join("");
+  document.getElementById("status-mix").innerHTML = mixHTML;
+
+  document.getElementById("data-ts").textContent = DATA.meta.last_refresh;
+}
+
+/* ==========================================================================
+ * MAP
+ * ========================================================================== */
+let mapInstance=null;
+let mapMarkers=[];
+
+function buildLegend(){
+  const el=document.getElementById("legend");
+  el.innerHTML = STATUSES.map(s=>
+    `<div class="item"><span class="swatch" style="background:${STATUS_HEX[s]}"></span>${s}</div>`
+  ).join("");
+}
+
+function populateFilter(elId, values, leading){
+  const el=document.getElementById(elId);
+  el.innerHTML = `<option value="">${leading}</option>` +
+    values.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+}
+
+function ensureMap(){
+  if(mapInstance){ setTimeout(()=>mapInstance.invalidateSize(),50); return; }
+  mapInstance = L.map("map",{minZoom:3,maxZoom:12}).setView([39.5,-97],4);
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    {attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}
+  ).addTo(mapInstance);
+  applyMapFilters();
+}
+
+function applyMapFilters(){
+  if(!mapInstance) return;
+  const q=document.getElementById("map-search").value.toLowerCase().trim();
+  const st=document.getElementById("map-state").value;
+  const co=document.getElementById("map-company").value;
+  const ty=document.getElementById("map-type").value;
+  const stat=document.getElementById("map-status").value;
+  mapMarkers.forEach(m=>mapInstance.removeLayer(m));
+  mapMarkers=[];
+  const filtered = DATA.locations.filter(l=>{
+    if(st && l.state!==st) return false;
+    if(co && l.company!==co) return false;
+    if(ty && l.project_type!==ty) return false;
+    if(stat && l.status!==stat) return false;
+    if(q){
+      const hay=(l.project_name+" "+l.company+" "+l.city+" "+l.state).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  filtered.forEach(l=>{
+    const color = STATUS_HEX[l.status]||"#888";
+    const m=L.circleMarker([l.latitude,l.longitude],{
+      radius:7,color:"#fff",weight:2,fillColor:color,fillOpacity:0.95
+    }).addTo(mapInstance);
+    const pop = `
+      <div style="min-width:240px">
+        <b>${escapeHtml(l.project_name)}</b><br>
+        <span style="color:var(--ink-mute)">${escapeHtml(l.company)}</span><br>
+        <span style="color:var(--ink-dim);font-size:12px">${escapeHtml(l.city)}, ${escapeHtml(l.state)}</span>
+        <div style="margin:8px 0">
+          <span class="pp-badge" style="background:${color};color:#0b0d10">${escapeHtml(l.status)}</span>
+          <span class="pp-badge" style="background:#2a323c;color:var(--ink-dim)">${escapeHtml(l.project_type)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:6px">${escapeHtml((l.notes||"").slice(0,140))}${(l.notes||"").length>140?"…":""}</div>
+        <a href="#/location/${l.id}">View details →</a> &nbsp;·&nbsp;
+        <a href="${escapeHtml(l.source_url)}" target="_blank" rel="noopener">Source</a>
+      </div>`;
+    m.bindPopup(pop);
+    mapMarkers.push(m);
+  });
+  document.getElementById("map-count").textContent =
+    `${filtered.length} of ${DATA.locations.length} locations`;
+}
+
+/* ==========================================================================
+ * LIST
+ * ========================================================================== */
+function renderList(){
+  const rowsEl=document.getElementById("list-rows");
+  const q=document.getElementById("list-search").value.toLowerCase().trim();
+  const st=document.getElementById("list-state").value;
+  const co=document.getElementById("list-company").value;
+  const ty=document.getElementById("list-type").value;
+  const stat=document.getElementById("list-status").value;
+  const sort=document.getElementById("list-sort").value;
+
+  let rows = DATA.locations.filter(l=>{
+    if(st && l.state!==st) return false;
+    if(co && l.company!==co) return false;
+    if(ty && l.project_type!==ty) return false;
+    if(stat && l.status!==stat) return false;
+    if(q){
+      const hay=(l.project_name+" "+l.company+" "+l.city+" "+l.state).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const cmp={
+    "investment-desc":(a,b)=>(b.estimated_investment_usd||0)-(a.estimated_investment_usd||0),
+    "power-desc":(a,b)=>(b.estimated_power_mw||0)-(a.estimated_power_mw||0),
+    "build-desc":(a,b)=>(b.build_certainty_score||0)-(a.build_certainty_score||0),
+    "impact-desc":(a,b)=>(b.local_impact_score||0)-(a.local_impact_score||0),
+    "opportunity-desc":(a,b)=>(b.opportunity_score||0)-(a.opportunity_score||0),
+    "hype-asc":(a,b)=>(a.hype_uncertainty_score||0)-(b.hype_uncertainty_score||0),
+    "updated-desc":(a,b)=>(b.last_updated||"").localeCompare(a.last_updated||"")
+  }[sort];
+  if(cmp) rows.sort(cmp);
+
+  document.getElementById("list-empty").style.display = rows.length ? "none" : "block";
+  rowsEl.innerHTML = rows.map(l=>{
+    const color = STATUS_HEX[l.status]||"#888";
+    const inv = l.estimated_investment_usd ? (l.estimated_investment_usd/1e9).toFixed(l.estimated_investment_usd>=1e10?0:1) : "—";
+    return `<tr data-id="${l.id}">
+      <td>${escapeHtml(l.project_name)}</td>
+      <td>${escapeHtml(l.company)}</td>
+      <td class="tight">${escapeHtml(l.city)}, ${escapeHtml(l.state)}</td>
+      <td class="tight">${escapeHtml(l.project_type)}</td>
+      <td><span class="badge" style="background:${color};color:#0b0d10">${escapeHtml(l.status)}</span></td>
+      <td class="num">${inv}</td>
+      <td class="num">${l.estimated_power_mw==null?"—":l.estimated_power_mw.toLocaleString()}</td>
+      <td class="num">${l.build_certainty_score??"—"}</td>
+      <td class="num">${l.local_impact_score??"—"}</td>
+      <td class="num">${l.opportunity_score??"—"}</td>
+      <td class="num">${l.hype_uncertainty_score??"—"}</td>
+      <td class="conf-${l.confidence_level}">${escapeHtml(l.confidence_level)}</td>
+      <td class="tight">${escapeHtml(l.last_updated)}</td>
+    </tr>`;
+  }).join("");
+  rowsEl.querySelectorAll("tr").forEach(tr=>{
+    tr.addEventListener("click",()=>{ location.hash="#/location/"+tr.dataset.id; });
+  });
+}
+
+/* ==========================================================================
+ * DETAIL
+ * ========================================================================== */
+function renderDetail(id){
+  const l = DATA.locations.find(x=>x.id===id);
+  const body = document.getElementById("detail-body");
+  if(!l){
+    body.innerHTML = `<div class="pane">Location not found. <a href="#/list">Back to list</a></div>`;
+    return;
+  }
+  const color = STATUS_HEX[l.status]||"#888";
+  const scoreRow = (label,val,colorOk)=>`
+    <div class="score-row">
+      <div class="l">${label}</div>
+      <div class="v" style="color:${colorOk?'#5dd39e':'var(--ink)'}">${val??"—"}</div>
+    </div>`;
+  body.innerHTML = `
+    <div class="detail-head">
+      <div>
+        <h1>${escapeHtml(l.project_name)}</h1>
+        <div class="sub">${escapeHtml(l.company)} · ${escapeHtml(l.city)}, ${escapeHtml(l.county)} County, ${escapeHtml(l.state)}</div>
+      </div>
+      <div>
+        <span class="badge" style="background:${color};color:#0b0d10">${escapeHtml(l.status)}</span>
+        <span class="badge" style="background:#2a323c;color:var(--ink-dim)">${escapeHtml(l.project_type)}</span>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div>
+        <div class="pane">
+          <h3>Why this location matters</h3>
+          <div style="font-size:14px;line-height:1.6">${escapeHtml(l.notes||"")}</div>
+        </div>
+        <div class="pane" style="margin-top:14px">
+          <h3>Project facts</h3>
+          <div class="kv">
+            <div class="k">Region</div><div class="v">${escapeHtml(l.region||"—")}</div>
+            <div class="k">Coordinates</div><div class="v">${l.latitude.toFixed(4)}, ${l.longitude.toFixed(4)}</div>
+            <div class="k">Estimated investment</div><div class="v">${fmtUSD(l.estimated_investment_usd)}</div>
+            <div class="k">Estimated power demand</div><div class="v">${fmtMW(l.estimated_power_mw)}</div>
+            <div class="k">Estimated water demand</div><div class="v">${l.estimated_water_mgd==null?"—":l.estimated_water_mgd+" MGD"}</div>
+            <div class="k">Project type</div><div class="v">${escapeHtml(l.project_type)}</div>
+            <div class="k">Status</div><div class="v">${escapeHtml(l.status)}</div>
+            <div class="k">Confidence</div><div class="v conf-${l.confidence_level}">${escapeHtml(l.confidence_level)}</div>
+            <div class="k">Last updated</div><div class="v">${escapeHtml(l.last_updated)}</div>
+          </div>
+        </div>
+        <div class="pane" style="margin-top:14px">
+          <h3>Source</h3>
+          <div><a href="${escapeHtml(l.source_url)}" target="_blank" rel="noopener">${escapeHtml(l.source_name||l.source_url)}</a>${l.source_date?` · ${escapeHtml(l.source_date)}`:""}</div>
+        </div>
+      </div>
+      <div>
+        <div class="pane">
+          <h3>Scores</h3>
+          ${scoreRow("Build certainty",l.build_certainty_score)}
+          ${scoreRow("Local impact",l.local_impact_score)}
+          ${scoreRow("Opportunity",l.opportunity_score)}
+          ${scoreRow("Hype / uncertainty",l.hype_uncertainty_score)}
+        </div>
+        <div class="pane" style="margin-top:14px">
+          <h3>Mini-map</h3>
+          <div id="mini-map" style="width:100%;height:240px;border-radius:6px;overflow:hidden"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  // mini-map
+  setTimeout(()=>{
+    const mm = L.map("mini-map",{zoomControl:false,attributionControl:false,
+      scrollWheelZoom:false,dragging:false,doubleClickZoom:false,touchZoom:false})
+      .setView([l.latitude,l.longitude],8);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {subdomains:"abcd"}).addTo(mm);
+    L.circleMarker([l.latitude,l.longitude],{
+      radius:8,color:"#fff",weight:2,fillColor:STATUS_HEX[l.status]||"#888",fillOpacity:0.95
+    }).addTo(mm);
+  },30);
+}
+
+/* ==========================================================================
+ * INIT
+ * ========================================================================== */
+function init(){
+  // populate filters
+  const states=uniq(DATA.locations.map(l=>l.state));
+  const companies=uniq(DATA.locations.map(l=>l.company));
+  const types=uniq(DATA.locations.map(l=>l.project_type));
+  const statuses=uniq(DATA.locations.map(l=>l.status));
+  populateFilter("map-state",states,"All states");
+  populateFilter("map-company",companies,"All companies");
+  populateFilter("map-type",types,"All types");
+  populateFilter("map-status",statuses,"All statuses");
+  populateFilter("list-state",states,"All states");
+  populateFilter("list-company",companies,"All companies");
+  populateFilter("list-type",types,"All types");
+  populateFilter("list-status",statuses,"All statuses");
+
+  buildLegend();
+
+  ["map-search","map-state","map-company","map-type","map-status"].forEach(id=>
+    document.getElementById(id).addEventListener("input",applyMapFilters));
+  ["list-search","list-state","list-company","list-type","list-status","list-sort"].forEach(id=>
+    document.getElementById(id).addEventListener("input",renderList));
+
+  route();
+}
+init();
+</script>
+</body>
+</html>
