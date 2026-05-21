@@ -81,6 +81,19 @@
   .leaflet-popup-content b{font-size:14px}
   .pp-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;
     font-weight:600;margin-right:4px}
+  /* layer control — dark theme */
+  .leaflet-control-layers{background:var(--panel) !important;color:var(--ink) !important;
+    border:1px solid var(--line) !important;border-radius:8px !important;
+    box-shadow:0 4px 18px rgba(0,0,0,.4) !important;padding:4px !important}
+  .leaflet-control-layers-expanded{padding:10px 12px !important}
+  .leaflet-control-layers label{color:var(--ink) !important;font-size:12px !important;
+    line-height:1.7 !important;display:block !important}
+  .leaflet-control-layers-separator{border-top:1px solid var(--line) !important}
+  .leaflet-control-attribution{background:rgba(11,13,16,.7) !important;color:var(--ink-mute) !important}
+  .leaflet-control-attribution a{color:var(--accent) !important}
+  .leaflet-control-zoom a{background:var(--panel) !important;color:var(--ink) !important;
+    border:1px solid var(--line) !important}
+  .leaflet-control-zoom a:hover{background:var(--panel2) !important}
   /* LIST */
   .list-tools{display:grid;grid-template-columns:1fr repeat(4,160px) 180px;gap:8px;
     margin-bottom:14px}
@@ -266,8 +279,8 @@
 </main>
 
 <footer class="app">
-  <div>Buildout Atlas v0.2 · 50 sourced locations · Last data refresh <span id="data-ts">—</span></div>
-  <div>Tiles © OpenStreetMap contributors</div>
+  <div>Buildout Atlas v0.3 · 50 sourced locations · Last data refresh <span id="data-ts">—</span></div>
+  <div>Tiles © OpenStreetMap / CARTO · Grid overlays © OpenInfraMap</div>
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -280,7 +293,7 @@
  * lat/lon, status, project_type, source_url, confidence_level, last_updated.
  * ========================================================================== */
 const DATA = {
-  meta:{ version:"0.2", last_refresh:"2026-05-21", source_count:50 },
+  meta:{ version:"0.3", last_refresh:"2026-05-21", source_count:50 },
   locations:[
   {
     id:"stargate-abilene",
@@ -1423,11 +1436,38 @@ function populateFilter(elId, values, leading){
 
 function ensureMap(){
   if(mapInstance){ setTimeout(()=>mapInstance.invalidateSize(),50); return; }
-  mapInstance = L.map("map",{minZoom:3,maxZoom:12}).setView([39.5,-97],4);
-  L.tileLayer(
+  mapInstance = L.map("map",{minZoom:3,maxZoom:14}).setView([39.5,-97],4);
+  const baseDark = L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     {attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}
   ).addTo(mapInstance);
+
+  // OpenInfraMap overlays — power, telecom, petroleum
+  // Each tile shows infrastructure color-coded by voltage/type, scaled by zoom.
+  const powerOverlay = L.tileLayer(
+    "https://openinframap.org/tiles/power/{z}/{x}/{y}.png",
+    {attribution:'&copy; <a href="https://openinframap.org/about" target="_blank">OpenInfraMap</a> / OSM contributors',
+     maxZoom:18, opacity:0.85}
+  );
+  const telecomOverlay = L.tileLayer(
+    "https://openinframap.org/tiles/telecoms/{z}/{x}/{y}.png",
+    {attribution:'&copy; OpenInfraMap / OSM', maxZoom:18, opacity:0.85}
+  );
+  const petroleumOverlay = L.tileLayer(
+    "https://openinframap.org/tiles/petroleum/{z}/{x}/{y}.png",
+    {attribution:'&copy; OpenInfraMap / OSM', maxZoom:18, opacity:0.85}
+  );
+
+  L.control.layers(
+    null,
+    {
+      "⚡ Grid (transmission + substations)": powerOverlay,
+      "📡 Fiber / telecom (sparse)": telecomOverlay,
+      "🛢 Pipelines / petroleum": petroleumOverlay
+    },
+    {position:"topright", collapsed:false}
+  ).addTo(mapInstance);
+
   applyMapFilters();
 }
 
