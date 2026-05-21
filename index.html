@@ -81,19 +81,17 @@
   .leaflet-popup-content b{font-size:14px}
   .pp-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;
     font-weight:600;margin-right:4px}
-  /* layer control — dark theme */
-  .leaflet-control-layers{background:var(--panel) !important;color:var(--ink) !important;
-    border:1px solid var(--line) !important;border-radius:8px !important;
-    box-shadow:0 4px 18px rgba(0,0,0,.4) !important;padding:4px !important}
-  .leaflet-control-layers-expanded{padding:10px 12px !important}
-  .leaflet-control-layers label{color:var(--ink) !important;font-size:12px !important;
-    line-height:1.7 !important;display:block !important}
-  .leaflet-control-layers-separator{border-top:1px solid var(--line) !important}
+  /* leaflet controls — dark theme */
   .leaflet-control-attribution{background:rgba(11,13,16,.7) !important;color:var(--ink-mute) !important}
   .leaflet-control-attribution a{color:var(--accent) !important}
   .leaflet-control-zoom a{background:var(--panel) !important;color:var(--ink) !important;
     border:1px solid var(--line) !important}
   .leaflet-control-zoom a:hover{background:var(--panel2) !important}
+  .grid-cta-btn{background:var(--accent) !important;color:#0b0d10 !important;
+    font-weight:600;font-size:12px;padding:8px 12px;cursor:pointer;
+    border-radius:6px !important;border:none !important;
+    box-shadow:0 2px 8px rgba(0,0,0,.4) !important;letter-spacing:.2px}
+  .grid-cta-btn:hover{background:#a3e4ff !important}
   /* LIST */
   .list-tools{display:grid;grid-template-columns:1fr repeat(4,160px) 180px;gap:8px;
     margin-bottom:14px}
@@ -279,8 +277,8 @@
 </main>
 
 <footer class="app">
-  <div>Buildout Atlas v0.3 · 50 sourced locations · Last data refresh <span id="data-ts">—</span></div>
-  <div>Tiles © OpenStreetMap / CARTO · Grid overlays © OpenInfraMap</div>
+  <div>Buildout Atlas v0.3.1 · 50 sourced locations · Last data refresh <span id="data-ts">—</span></div>
+  <div>Tiles © OpenStreetMap / CARTO · Grid view via OpenInfraMap</div>
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -1437,36 +1435,29 @@ function populateFilter(elId, values, leading){
 function ensureMap(){
   if(mapInstance){ setTimeout(()=>mapInstance.invalidateSize(),50); return; }
   mapInstance = L.map("map",{minZoom:3,maxZoom:14}).setView([39.5,-97],4);
-  const baseDark = L.tileLayer(
+  L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     {attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}
   ).addTo(mapInstance);
 
-  // OpenInfraMap overlays — power, telecom, petroleum
-  // Each tile shows infrastructure color-coded by voltage/type, scaled by zoom.
-  const powerOverlay = L.tileLayer(
-    "https://tiles-{s}.openinframap.org/power/{z}/{x}/{y}.png",
-    {attribution:'&copy; <a href="https://openinframap.org/about" target="_blank">OpenInfraMap</a> / OSM contributors',
-     subdomains:"abc", maxZoom:18, opacity:0.85}
-  );
-  const telecomOverlay = L.tileLayer(
-    "https://tiles-{s}.openinframap.org/telecoms/{z}/{x}/{y}.png",
-    {attribution:'&copy; OpenInfraMap / OSM', subdomains:"abc", maxZoom:18, opacity:0.85}
-  );
-  const petroleumOverlay = L.tileLayer(
-    "https://tiles-{s}.openinframap.org/petroleum/{z}/{x}/{y}.png",
-    {attribution:'&copy; OpenInfraMap / OSM', subdomains:"abc", maxZoom:18, opacity:0.85}
-  );
-
-  L.control.layers(
-    null,
-    {
-      "⚡ Grid (transmission + substations)": powerOverlay,
-      "📡 Fiber / telecom (sparse)": telecomOverlay,
-      "🛢 Pipelines / petroleum": petroleumOverlay
-    },
-    {position:"topright", collapsed:false}
-  ).addTo(mapInstance);
+  // "See this on the grid" button — opens OpenInfraMap centered at current view.
+  // OpenInfraMap migrated to vector tiles; until we MapLibre-ify, this is the cleanest hand-off.
+  const GridButton = L.Control.extend({
+    options:{position:"topright"},
+    onAdd:function(){
+      const div = L.DomUtil.create("div","leaflet-bar grid-cta-btn");
+      div.innerHTML = "⚡ View on OpenInfraMap";
+      div.title = "Open the same area in OpenInfraMap to see transmission lines, substations, fiber, and pipelines.";
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.on(div,"click",()=>{
+        const c = mapInstance.getCenter(), z = mapInstance.getZoom();
+        const url = `https://openinframap.org/#${z}/${c.lat.toFixed(4)}/${c.lng.toFixed(4)}`;
+        window.open(url,"_blank","noopener");
+      });
+      return div;
+    }
+  });
+  mapInstance.addControl(new GridButton());
 
   applyMapFilters();
 }
